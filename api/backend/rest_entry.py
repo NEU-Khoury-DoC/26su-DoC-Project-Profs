@@ -5,7 +5,7 @@ import logging
 
 from backend.db_connection import init_app as init_db
 from backend.simple.simple_routes import simple_routes
-from backend.ngos.ngo_routes import ngos
+from backend.ngos.ngo_routes import ngo_bp
 
 
 def create_app():
@@ -19,7 +19,8 @@ def create_app():
     load_dotenv()
 
     # Secret key used by Flask for securely signing session cookies.
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
+    # .strip() removes accidental leading/trailing whitespace from .env values.
+    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY").strip()
 
     # Database connection settings — values come from the .env file.
     app.config["MYSQL_DATABASE_USER"] = os.getenv("DB_USER").strip()
@@ -34,8 +35,9 @@ def create_app():
 
     # Register the routes from each Blueprint with the app object
     # and give a url prefix to each.
+    # simple_routes has no prefix intentionally — it serves root-level demo routes (/, /playlist, etc.)
     app.logger.info("create_app(): registering blueprints")
     app.register_blueprint(simple_routes)
-    app.register_blueprint(ngos, url_prefix="/ngo")
+    app.register_blueprint(ngo_bp, url_prefix="/ngo")
 
     return app
