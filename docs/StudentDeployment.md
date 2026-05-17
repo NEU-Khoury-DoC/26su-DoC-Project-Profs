@@ -26,6 +26,14 @@ Course staff can grant you view-only access to the Coolify dashboard at `coolify
 - Read container logs (`app`, `api`, `db`) — useful when something works locally but not in production.
 - Manually trigger a redeploy.
 
+## A note on the database
+
+Both local dev and production run MySQL **without a persistent volume**. Every fresh container start reseeds the database from `database-files/*.sql`. This means:
+
+- The SQL files in your repo are the source of truth for what's in the database.
+- Rows you insert through the app (e.g. via the **Add NGO** page) disappear when the container is recreated (on every push to production, or any `docker compose down && up` locally).
+- To make data "permanent," add it to `database-files/*.sql` and commit.
+
 ## What's different between local dev and production
 
 - **Local (`docker compose up`)** mounts your source code into the containers for hot-reload. Edit a file → see the change immediately.

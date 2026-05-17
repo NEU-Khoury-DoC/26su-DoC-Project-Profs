@@ -11,13 +11,23 @@ In general, any changes you make to the API code base (REST API) or the Streamli
 
 The MySQL container behaves differently from the app and API containers — be aware of the following:
 
-- When the MySQL container is ***created*** for the first time, it will execute any `.sql` files in the `./database-files` folder. **Important:** it will execute them in alphabetical order, so name your files accordingly (e.g. `01_schema.sql`, `02_data.sql`).
-- The MySQL container's log files are your friend. Access them in Docker Desktop by selecting the MySQL container and clicking the **Logs** tab. If there are errors in your `.sql` files, they will appear here. Use the search 🔍 to look for `Error` to find them quickly.
-- If you need to update anything in any of your SQL files, you **must** recreate the MySQL container rather than just stopping and restarting it. Use the following command:
+- The MySQL container has **no persistent volume** in this project. Every time a fresh `db` container is *created*, MySQL initializes itself by executing the `.sql` files in `./database-files/` in **alphabetical order** (name them accordingly — e.g. `01_schema.sql`, `02_data.sql`).
+- This matches how the app behaves in production (Coolify): every redeploy starts with a fresh database seeded from the SQL files in your repo. The seed files are the source of truth — there is no separate "production data" that drifts from what's in the repo.
+- **Implication:** rows you insert through the Streamlit UI (e.g. via the **Add NGO** page) live only inside the running container. They disappear the next time the container is recreated. If you want some data to always be present, add it to `database-files/*.sql`.
 
-  ```bash
-  docker compose down db -v && docker compose up db -d
-  ```
+### When you change a SQL file
 
-  - `docker compose down db -v` stops and deletes the MySQL container and the volume attached to it.
-  - `docker compose up db -d` creates a new container and re-runs all the files in the `database-files` folder.
+You must **recreate** the `db` container, not just restart it. Restarting reuses the same container with the same already-initialized data dir. Recreating gives you a clean container that runs the init scripts again.
+
+```bash
+docker compose down db && docker compose up db -d
+```
+
+- `docker compose down db` stops and removes the MySQL container.
+- `docker compose up db -d` creates a new container and re-runs all files in `database-files/`.
+
+(There's no `-v` flag because there's no volume to wipe.)
+
+### Reading the logs
+
+The MySQL container's log files are your friend. In Docker Desktop, select the `mysql_db` container and click the **Logs** tab. If there are errors in your `.sql` files, they appear here. Use the search 🔍 to look for `Error` to find them quickly. Common culprits: typos, foreign-key references to tables not yet created, duplicate primary keys.

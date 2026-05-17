@@ -12,6 +12,10 @@ name: project-app-team-repo
 #     http://web-api:4000 works unchanged in production.
 #   - Env vars (SECRET_KEY, MYSQL_ROOT_PASSWORD, etc.) are injected by Coolify
 #     via its Environment Variables UI; no .env file is needed in production.
+#   - The db service is built from ./database-files/Dockerfile so the seed SQL
+#     ships inside the image. No bind mount (Coolify doesn't reliably honor
+#     relative bind mounts) and no persistent volume (every redeploy starts
+#     with a freshly seeded database from the SQL committed in the repo).
 
 services:
   app:
@@ -38,14 +42,16 @@ services:
       - db
 
   db:
-    image: mysql:9
+    build: ./database-files
     hostname: db
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${DB_NAME}
-    volumes:
-      - "./database-files:/docker-entrypoint-initdb.d/:ro"
-      - "doc_mysql_data:/var/lib/mysql"
-
-volumes:
-  doc_mysql_data:
+    # tmpfs (RAM-backed) explicitly overrides the mysql:9 image's VOLUME
+    # directive for /var/lib/mysql. Without this, Docker silently creates an
+    # anonymous volume that survives container recreates, and MySQL's
+    # entrypoint skips init on subsequent deploys — defeating the ephemeral
+    # behavior we want. With tmpfs, every container recreate gets a truly
+    # fresh data dir and the SQL in the image always seeds the database.
+    tmpfs:
+      - /var/lib/mysql

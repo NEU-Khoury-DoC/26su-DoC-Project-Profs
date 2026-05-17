@@ -80,6 +80,8 @@ Note: `DB_HOST`, `DB_PORT`, and service hostnames are hardcoded in `docker-compo
 
 First deploy takes ~3–5 minutes (image build + MySQL init from `database-files/*.sql`). Subsequent deploys are faster (Docker layer cache).
 
+> **Note on the database:** the prod stack runs MySQL **without a persistent volume**. Every redeploy starts the `db` container fresh and re-runs all `database-files/*.sql` scripts. This means the SQL committed in the team's repo is always the source of truth — there is no production state that can drift from the repo. Teams can iterate on schema by editing the SQL and pushing; no staff volume-wipe is needed.
+
 ---
 
 ## Verification checklist
@@ -108,7 +110,7 @@ Optionally archive each team's GitHub fork separately.
 
 ## Troubleshooting
 
-- **First deploy fails with MySQL init errors:** the volume from a prior failed deploy may have partial data. In Coolify → **Storages**, delete the `doc_mysql_data` volume for that resource, then redeploy.
+- **MySQL init errors on deploy:** check the `db` container logs for SQL syntax errors — the seed files in `database-files/` ran into a problem. Fix in the repo and push. (There's no persistent volume to wipe; the next deploy reseeds automatically.)
 - **Streamlit can't reach the API:** confirm `api` service is healthy in Coolify logs. The app calls `http://web-api:4000` internally — that hostname is set in the prod compose. If logs show DNS errors for `web-api`, the compose was modified incorrectly.
 - **Cert provisioning fails:** confirm the wildcard DNS resolves (`dig team{N}.neu-in-leuven.cloud`) before retrying. Let's Encrypt rate-limits failed attempts.
 - **Auto-deploy isn't triggering:** check the GitHub repo's **Settings → Webhooks** for the Coolify webhook and recent delivery status.
